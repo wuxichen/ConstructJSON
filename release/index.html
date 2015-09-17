@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN" ng-app="cootek-json">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CooTekJSON</title>
+
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/non-responsiveness.css" rel="stylesheet">
+    <link href="css/cootek-json.css" rel="stylesheet">
+    
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="//cdn.bootcss.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <script src="//cdn.bootcss.com/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- 如果是非服务器端的，就采用script标签获取json内容 -->
+    <script src="index.v2.js" ng-if="!isServer"></script>
+
+</head>
+<body data-spy="scroll" data-target="#scrollSpySection" ng-controller="IndexJSONController">
+    <!-- 1. 导航条 -->
+    <nav id="header-nav" class="navbar navbar-default navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header"> 
+                <a class="navbar-brand"  href="#">CooTekJSON内容管理工具</a>
+            </div> 
+            <div id="navbar" class="navbar-collapse collapse"> 
+                <ul class="nav navbar-nav navbar-right">
+                    <li class="active"><a href="#">index.json</a></li>
+                    <li><a href="#">activity.json</a></li>
+                    <li><a href="#">others</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container margin-top-70">
+        <div class="row">
+
+            <!-- 2. 导航TreeView部分 -->
+            <div id="scrollSpySection" class="col-xs-4">
+                <nav id="json-affix" class="panel panel-primary" data-spy="affix">
+                    <div class="panel-heading">
+                        <h4 class="panel-title">JSON 结构导航</h4>
+                    </div>
+
+                    <ul id="json-affix-content" class="sidebar-nav nav panel-body">
+                        <li ng-repeat="section in jsonCodeSections | filter: section.type = '!separator'">
+                            <a ng-href="#{{section.type}}">{{ getSectionTitle(section.type) }}模块</a>
+                            <ul cootek-json-nav section-obj="section" class="nav"></ul>
+                        </li>
+                    </ul>
+                </nav>
+
+            </div>
+
+            <!-- JSON输入或代码框 及 结构管理部分 -->
+            <div class="col-xs-8">
+
+                <!-- 3. JSON输入或代码框 -->
+                <div id="jsoncode" class="form-group clearfix">
+                    <label for="jsoncodetext" class="control-label code-label">JSON代码</label>
+                <textarea id="jsoncodetext" class="form-control both-fix" rows="3" ng-model="jsonCodeString"
+                          ng-show="jsoncodeEditable" ng-focus="textAreaFocus($event)"
+                          ng-blur="textAreaBlur($event)"></textarea>
+                <pre class="code-pre" ng-model="jsonCodeString" ng-show="!jsoncodeEditable">
+                    {{jsonCodeString}}
+                    <div class="code-pre-btn">
+                        <span class="glyphicon glyphicon-paste" data-toggle="tooltip" data-placement="bottom"
+                              title="复制" ng-click="copyJsonCode($event)"></span>
+                        <span class="glyphicon glyphicon-edit" data-toggle="tooltip" data-placement="bottom"
+                              title="编辑" ng-click="editJsonCode()"></span>
+                    </div>
+                </pre>
+
+                    <div class="form-btn clearfix">
+                        <button type="button" class="btn btn-primary" ng-click="generateDOM()">由JSON代码生成结构</button>
+                        <i></i>
+                        <button type="button" class="btn btn-primary" ng-click="generateCode()">由结构生成JSON代码</button>
+                    </div>
+                </div>
+
+
+                <!-- 4. 结构管理部分 -->
+                <div id="jsoncode-dom" class="clearfix">
+                    <section class="module clearfix" ng-repeat="section in jsonCodeSections">
+                        <div id="{{ section.type }}" class="module-title"><h4>{{ getSectionTitle(section.type)
+                            }}模块</h4>
+                        </div>
+                        <div id="{{ section.type }}" cootek-json-repeat section-obj="section" section-index="$index" class="clearfix"></div>
+                    </section>
+                </div>
+
+                <div class="clearfix">
+                    <a href="#jsoncode" class="btn btn-primary generate-json"
+                       ng-click="generateCode()">由结构生成JSON代码</a>
+                </div>
+
+            </div>
+            <!--<p>{{ jsonCodeSections }}</p>-->
+        </div>
+    </div>
+    <footer id="footer">
+        <!--底部-->
+    </footer>
+
+    <!--警告框-->
+    <div class="tip-label alert alert-danger alert-dismissible" role="alert" ng-show="showErrorLabel">
+        <strong>[操作失败]</strong> {{ errorLabel }}
+    </div>
+    <div class="tip-label alert alert-success alert-dismissible" role="alert" ng-show="showSuccessLabel">
+        <strong>[操作成功]</strong> {{ successLabel }}
+    </div>
+
+    <!-- 新增item的模态框 -->
+    <div id="add-item" class="modal fade" style="display: none;">
+        <div class="modal-header">
+            <a class="close" data-dismiss="modal">×</a>
+            <h3>新增item</h3>
+        </div>
+        <form name="addForm" novalidate>
+            <div class="modal-body">
+                <fieldset>
+                    <div ng-if="!addItem.isArray">
+                        <label>名称</label>
+                        <input type="text" value=" "class="add-style form-control1" ng-model="addItem.key" required>
+                    </div>
+                    <div id="add-type">
+                        <label>类型</label>
+                        <select class="add-style form-control1" ng-model="addItem.type" required>
+                            <option value="0">string</option>
+                            <option value="1">boolean</option>
+                            <option value="2">array</option>
+                            <option value="3">object</option>
+                        </select>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" ng-disabled="addForm.$invalid" ng-click="addConfirm()" data-dismiss="modal">确定</button>
+                <a class="btn" data-dismiss="modal">取消</a>
+            </div>
+        </form>
+    </div>
+
+    <!--修改键值-->
+    <div id="item-change" class="modal fade" style="display:none;">
+        <div class="modal-header">
+            <a class="close" data-dismiss="modal">×</a>
+            <h3>修改item</h3>
+        </div>
+        <div class="modal-body">
+            <form>
+                <fieldset>
+                    <div>
+                        <label>名称</label>
+                        <input type="text" placeholder="请输入名称" class="add-style form-control1" ng-model="changeItem.key">
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <a class="btn btn-success" ng-click="changeConfirm()" data-dismiss="modal">submit</a>
+            <a class="btn" data-dismiss="modal">Close</a>
+        </div>
+    </div>
+
+    <!--删除确认 模态框-->
+    <div id="delete-item" class="modal fade" style="display: none;">
+        <div class="modal-header">
+            <a class="close" data-dismiss="modal">×</a>
+            <h3>删除确认</h3>
+        </div>
+        <div class="modal-body">
+            <form>
+                <fieldset>
+                    <div>
+                        <label>是否删除id为 {{ toDeleteId }} 的结点？</label>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <a class="btn btn-success" ng-click="deleteConfirm()" data-dismiss="modal">确认</a>
+            <a class="btn" data-dismiss="modal">取消</a>
+        </div>
+    </div>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="js/jquery-1.11.3.min.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <!--<script src="js/bootstrap.min.js"></script>-->
+    <script src="js/bootstrap.js"></script>
+    <script src="js/angular.min.js"></script>
+    <script src="js/cootek-json.js"></script>
+</body>
+</html>
+
